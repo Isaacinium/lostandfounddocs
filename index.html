@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Lost & Found Documents</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav>
+      <h1 class="logo">Lost & Found Docs</h1>
+      <div class="nav-links">
+        <button id="uploadBtn" class="btn primary">Upload Document</button>
+        <a id="searchBtn" class="btn" href="//2page.html" aria-current="page">Search Documents</a>
+      </div>
+    </nav>
+    
+    <main>
+      <div id="uploadForm" class="form-container">
+        <h2>Upload Found Document</h2>
+        <form id="documentForm" action="upload.php" method="post">
+          <div class="form-group">
+            <label for="docType">Document Type</label>
+            <select name="docType" id="docType" required>
+              <option value="">Select type...</option>
+              <option value="id">ID Card</option>
+              <option value="passport">Passport</option>
+              <option value="license">Driver's License</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="docNumber">Document Number</label>
+            <input name="docNumber" type="text" id="docNumber" required pattern="^[a-zA-Z0-9]{5,20}$" placeholder="Enter ID/passport/license number">
+          </div>
+          
+          <div class="form-group">
+            <label for="name">Name (Document Owner)</label>
+            <input name="name" type="text" id="name" required pattern="^[a-zA-Z\s]+$" placeholder="Enter the name of the person as shown on the document">
+            <small class="help-text">Enter the name of the person who lost the document</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="dateFound">Date Found</label>
+            <input name="dateFound" type="date" id="dateFound" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="location">Location Found</label>
+            <input name="location" type="text" id="location" required minlength="5" placeholder="Where did you find it?">
+          </div>
+          
+          <div class="form-group">
+            <label>Your Contact Info</label>
+            <div class="contact-group">
+              <input name="contact" type="email" id="contact" required placeholder="Your email address">
+              <input name="phone" type="tel" id="phone" required pattern="^\d{10}$" placeholder="Your phone number">
+            </div>
+            <small class="help-text">Contact information of the person who found the document</small>
+          </div>
+          
+          <button type="submit" class="btn primary">Submit</button>
+        </form>
+      </div>
+
+      <div id="searchForm" class="form-container hidden">
+        <h2>Search Lost Documents</h2>
+        <form action="search.php">
+          <div class="search-filters">
+            <div class="form-group">
+              <label for="searchType">Document Type</label>
+              <select name="searchType" id="searchType">
+                <option value="">Any type</option>
+                <option value="id">ID Card</option>
+                <option value="passport">Passport</option>
+                <option value="license">Driver's License</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="searchDocNumber">Document Number</label>
+              <input name="searchDocNumber" type="text" id="searchDocNumber" required pattern="^[a-zA-Z0-9]{5,20}$" placeholder="Enter ID/passport number...">
+            </div>
+
+            <div class="form-group">
+              <label for="searchName">Your Name</label>
+              <input name="searchName" type="text" id="searchName" required pattern="^[a-zA-Z\s]+$" placeholder="Enter your name as shown on document...">
+            </div>
+
+            <button id="searchSubmit" class="btn primary">Search</button>
+          </div>
+        </form>
+        
+        <div id="results" class="results-container">
+          <!-- Results will be populated by JavaScript -->
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const uploadForm = document.getElementById('uploadForm');
+      const searchForm = document.getElementById('searchForm');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const searchBtn = document.getElementById('searchBtn');
+
+      uploadBtn.addEventListener('click', () => {
+        uploadForm.classList.remove('hidden');
+        searchForm.classList.add('hidden');
+      });
+
+      if (searchBtn) {
+        searchBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          searchForm.classList.remove('hidden');
+          uploadForm.classList.add('hidden');
+        });
+      }
+    </script>
+    <script>
+      document.getElementById('searchSubmit').addEventListener('click', function (e) {
+          e.preventDefault();
+      
+          const searchType = document.getElementById('searchType').value.trim();
+          const searchDocNumber = document.getElementById('searchDocNumber').value.trim();
+          const searchName = document.getElementById('searchName').value.trim();
+      
+          const resultsContainer = document.getElementById('results');
+          resultsContainer.innerHTML = '<p>Loading results...</p>';
+      
+          fetch(`search.php?searchType=${encodeURIComponent(searchType)}&searchDocNumber=${encodeURIComponent(searchDocNumber)}&searchName=${encodeURIComponent(searchName)}`)
+              .then(response => {
+                  if (!response.ok) {
+                      throw new Error(`HTTP error! Status: ${response.status}`);
+                  }
+                  return response.json();
+              })
+              .then(data => {
+                  resultsContainer.innerHTML = '';
+                  if (data.length > 0) {
+                      data.forEach(doc => {
+                          const div = document.createElement('div');
+                          div.className = 'result-item';
+                          div.innerHTML = `
+                              <h3>${sanitizeHTML(doc.doc_type)}</h3>
+                              <p><strong>Document Number:</strong> ${sanitizeHTML(doc.doc_number)}</p>
+                              <p><strong>Owner:</strong> ${sanitizeHTML(doc.owner_name)}</p>
+                              <p><strong>Date Found:</strong> ${sanitizeHTML(doc.date_found)}</p>
+                              <p><strong>Location:</strong> ${sanitizeHTML(doc.location_found)}</p>
+                          `;
+                          resultsContainer.appendChild(div);
+                      });
+                  } else {
+                      resultsContainer.innerHTML = '<p>No documents found.</p>';
+                  }
+              })
+              .catch(error => {
+                  resultsContainer.innerHTML = `<p>Error: ${error.message}</p>`;
+                  console.error('Error fetching search results:', error);
+              });
+      });
+      
+      function sanitizeHTML(str) {
+          const temp = document.createElement('div');
+          temp.textContent = str;
+          return temp.innerHTML;
+      }
+      </script>      
+  </body>
+</html>
